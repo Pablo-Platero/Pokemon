@@ -1,86 +1,115 @@
 import React, { useEffect, useState } from 'react';
-import { ScrollView, Text, TextInput, StyleSheet, ActivityIndicator } from 'react-native';
+import { ScrollView, Text, TextInput, StyleSheet, ActivityIndicator, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { PokemonItem, PokemonResponse } from '../types/character';  // Ajusta los tipos importados
-import global from '../styles/global';
 import api from '../api/api';
 import PokemonCard from '../components/PokemonCard';
 
+interface PokemonItem {
+    name: string;
+    url: string;
+}
+
+interface PokemonResponse {
+    results: PokemonItem[];
+}
+
 export default function HomeScreen() {
-  const [pokemon, setPokemon] = useState<PokemonItem[]>([]);  // Cambia el tipo aquí
-  const [searchQuery, setSearchQuery] = useState('');
-  const [loading, setLoading] = useState(false);
-  const navigation = useNavigation();
+    const [pokemon, setPokemon] = useState<PokemonItem[]>([]);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [loading, setLoading] = useState(false);
+    const navigation = useNavigation();
 
-  // Función para obtener los Pokémon desde la API
-  const fetchPokemons = async () => {
-    setLoading(true);
-    try {
-      const { data } = await api.get<PokemonResponse>('/pokemon?limit=20');  // Cambia el tipo aquí
-      setPokemon(data.results);  // Usa 'results' que es el arreglo de Pokémon
-    } catch (error) {
-      console.error(error);
-    }
-    setLoading(false);
-  };
+    const fetchPokemons = async () => {
+        setLoading(true);
+        try {
+            const { data } = await api.get<PokemonResponse>('/pokemon?limit=20');
+            setPokemon(data.results);
+        } catch (error) {
+            console.error('Error fetching pokemons:', error);
+        }
+        setLoading(false);
+    };
 
-  // Función para buscar Pokémon por nombre
-  const searchPokemon = async (name: string) => {
-    setLoading(true);
-    if (name.trim() === '') {
-      fetchPokemons();  // Si no hay nombre, muestra todos los Pokémon
-    } else {
-      try {
-        const { data } = await api.get(`/pokemon/${name.toLowerCase()}`);
-        setPokemon([data]);  // Solo el Pokémon encontrado
-      } catch (error) {
-        setPokemon([]);  // Si no encuentra el Pokémon, muestra vacío
-        console.error(error);
-      }
-    }
-    setLoading(false);
-  };
+    const searchPokemon = async (name: string) => {
+        setLoading(true);
+        if (name.trim() === '') {
+            fetchPokemons();
+        } else {
+            try {
+                const { data } = await api.get(`/pokemon/${name.toLowerCase()}`);
+                setPokemon([{ name: data.name, url: `https://pokeapi.co/api/v2/pokemon/${data.id}/` }]);
+            } catch (error) {
+                setPokemon([]);
+                console.error('Error searching pokemon:', error);
+            }
+        }
+        setLoading(false);
+    };
 
-  useEffect(() => {
-    fetchPokemons();
-  }, []);
+    useEffect(() => {
+        fetchPokemons();
+    }, []);
 
-  return (
-    <ScrollView style={global.container}>
-      <Text style={global.title}>🎰 Personajes de Pokémon</Text>
+    return (
+        <ScrollView contentContainerStyle={styles.container}>
+            <Text style={styles.title}>🎰 Personajes de Pokémon</Text>
 
-      {/* Campo de búsqueda */}
-      <TextInput
-        style={styles.searchInput}
-        placeholder="Buscar Pokémon por nombre"
-        value={searchQuery}
-        onChangeText={setSearchQuery}
-        onSubmitEditing={() => searchPokemon(searchQuery)}  // Cuando el usuario presione Enter
-      />
+            <TextInput
+                style={styles.searchInput}
+                placeholder="Buscar Pokémon por nombre"
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                onSubmitEditing={() => searchPokemon(searchQuery)}
+            />
 
-      {/* Mostrar cargando mientras se obtiene o filtra */}
-      {loading ? (
-        <ActivityIndicator size="large" color="#0000ff" />
-      ) : (
-        pokemon.length > 0 ? (
-          pokemon.map((pokemonItem) => (
-            <PokemonCard key={pokemonItem.url} pokemon={pokemonItem} navigation={navigation} />
-          ))
-        ) : (
-          <Text>No se encontraron Pokémon.</Text>
-        )
-      )}
-    </ScrollView>
-  );
+            {loading ? (
+                <ActivityIndicator size="large" color="#1e90ff" />
+            ) : pokemon.length > 0 ? (
+                <View style={styles.pokemonContainer}>
+                    {pokemon.map((pokemonItem) => (
+                        <PokemonCard 
+                            key={pokemonItem.url} 
+                            pokemon={pokemonItem} 
+                            navigation={navigation} 
+                        />
+                    ))}
+                </View>
+            ) : (
+                <Text style={styles.noResults}>No se encontraron Pokémon.</Text>
+            )}
+        </ScrollView>
+    );
 }
 
 const styles = StyleSheet.create({
-  searchInput: {
-    height: 40,
-    borderColor: '#ccc',
-    borderWidth: 1,
-    marginBottom: 20,
-    paddingLeft: 10,
-    width: '100%',
-  },
+    container: {
+        padding: 20,
+        backgroundColor: '#1f6ea27b',
+    },
+    title: {
+        fontSize: 24,
+        fontWeight: 'bold',
+        marginBottom: 20,
+        textAlign: 'center',
+        color: '#333',
+    },
+    searchInput: {
+        height: 40,
+        borderColor: '#1e90ff',
+        borderWidth: 1,
+        borderRadius: 8,
+        marginBottom: 20,
+        paddingHorizontal: 15,
+        backgroundColor: '#fff',
+    },
+    pokemonContainer: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        justifyContent: 'space-between',
+    },
+    noResults: {
+        textAlign: 'center',
+        marginTop: 20,
+        color: '#666',
+    },
 });
